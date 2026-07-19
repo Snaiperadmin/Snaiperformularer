@@ -10,13 +10,19 @@
     h2 { margin-top: 0; color: #000000; font-size: 22px; font-weight: 700; text-align: center; }
     .countdown { font-size: 18px; font-weight: 700; color: #ff3b30; text-align: center; margin-bottom: 20px; background-color: #ffe5e5; padding: 10px; border-radius: 8px; }
     .felt-gruppe { margin-bottom: 20px; }
-    label { display: block; font-weight: 600; margin-bottom: 8px; font-size: 14px; text-align: center; }
+    label.overskrift-label { display: block; font-weight: 600; margin-bottom: 8px; font-size: 14px; text-align: center; }
     input[type="email"] { width: 100%; padding: 12px; border: 1px solid #d2d2d7; border-radius: 8px; box-sizing: border-box; font-size: 16px; background-color: #f5f5f7; text-align: center; }
     input[type="email"]:focus { outline: none; border-color: #0071e3; background-color: #ffffff; }
-    .stemme-knapper { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
-    .stemme-knap { background-color: #0071e3; color: white; border: none; padding: 16px; font-size: 16px; font-weight: 600; border-radius: 10px; cursor: pointer; transition: background-color 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-    .stemme-knap:hover { background-color: #005bb5; }
-    .stemme-knap:disabled { background-color: #d2d2d7; color: #86868b; cursor: not-allowed; }
+    
+    .valg-liste { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; margin-bottom: 20px; }
+    .valg-mulighed { display: flex; align-items: center; background-color: #f5f5f7; padding: 14px; border-radius: 10px; cursor: pointer; border: 1px solid #e5e5ea; transition: background-color 0.2s; }
+    .valg-mulighed:hover { background-color: #e5e5ea; }
+    .valg-mulighed input[type="checkbox"] { width: 20px; height: 20px; margin-right: 12px; cursor: pointer; }
+    .valg-navn { font-size: 16px; font-weight: 600; }
+
+    .indsend-knap { background-color: #ff3b30; color: white; border: none; padding: 16px; font-size: 16px; font-weight: 600; border-radius: 10px; cursor: pointer; width: 100%; transition: background-color 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .indsend-knap:hover { background-color: #e02e24; }
+    .indsend-knap:disabled { background-color: #d2d2d7; color: #86868b; cursor: not-allowed; }
   </style>
 </head>
 <body>
@@ -29,12 +35,16 @@
 
     <div id="formularContainer" style="display: none;">
       <div class="felt-gruppe">
-        <label for="email">Indtast din e-mail for at afgive stemme:</label>
+        <label for="email" class="overskrift-label">Indtast din e-mail for at afgive stemme:</label>
         <input type="email" id="email" required placeholder="F.eks. din@mail.dk">
       </div>
 
-      <label>Klik på den spiller du vil sende i fængsel:</label>
-      <div id="knapperOmraade" class="stemme-knapper"></div>
+      <label class="overskrift-label">Sæt kryds ved de spillere, du vil sende i fængsel (du kan vælge flere eller slet ingen):</label>
+      
+      <!-- Listen med tjekbokse genereres her -->
+      <div id="valgListeOmraade" class="valg-liste"></div>
+
+      <button id="indsendKnap" class="indsend-knap" onclick="indsendStemmeseddel()">Indsend stemme</button>
     </div>
   </div>
 
@@ -66,13 +76,26 @@
             document.getElementById('status').style.display = "none";
             document.getElementById('countdownBoks').style.display = "block";
             
-            const knapperOmraade = document.getElementById('knapperOmraade');
-            data.nominerede.forEach(navn => {
-              const knap = document.createElement('button');
-              knap.className = "stemme-knap";
-              knap.innerText = navn;
-              knap.onclick = function() { stemPå(navn); };
-              knapperOmraade.appendChild(knap);
+            const valgListeOmraade = document.getElementById('valgListeOmraade');
+            
+            // Generer en række med tjekboks for hver nomineret spiller
+            data.nominerede.forEach((navn, index) => {
+              const labelMulighed = document.createElement('label');
+              labelMulighed.className = "valg-mulighed";
+
+              const checkbox = document.createElement('input');
+              checkbox.type = "checkbox";
+              checkbox.name = "spillerStemme";
+              checkbox.value = navn;
+              checkbox.id = "spiller_" + index;
+
+              const spandNavn = document.createElement('span');
+              spandNavn.className = "valg-navn";
+              spandNavn.innerText = navn;
+
+              labelMulighed.appendChild(checkbox);
+              labelMulighed.appendChild(spandNavn);
+              valgListeOmraade.appendChild(labelMulighed);
             });
 
             document.getElementById('formularContainer').style.display = "block";
@@ -89,7 +112,7 @@
         if (afstand < 0) {
           clearInterval(x);
           document.getElementById('countdownBoks').innerHTML = "AFSTEMNING LUKKET!";
-          deaktiverKnapper();
+          deaktiverFormular();
           return;
         }
 
@@ -99,12 +122,14 @@
       }, 1000);
     }
 
-    function deaktiverKnapper() {
-      const knapper = document.getElementsByClassName('stemme-knap');
-      for (let knap of knapper) { knap.disabled = true; }
+    function deaktiverFormular() {
+      document.getElementById('indsendKnap').disabled = true;
+      document.getElementById('email').disabled = true;
+      const bokse = document.getElementsByName('spillerStemme');
+      for (let boks of bokse) { boks.disabled = true; }
     }
 
-    function stemPå(navn) {
+    function indsendStemmeseddel() {
       const email = document.getElementById('email').value.trim();
       const spreadsheetId = document.getElementById('spreadsheetId').value;
 
@@ -113,8 +138,19 @@
         return;
       }
 
-      deaktiverKnapper();
-      document.getElementById('countdownBoks').innerHTML = "Indsender stemme...";
+      // Saml alle spillernavne op, hvor der er sat flueben
+      const tjekkedeBokse = document.querySelectorAll('input[name="spillerStemme"]:checked');
+      const valgteNavne = [];
+      tjekkedeBokse.forEach(boks => {
+        valgteNavne.push(boks.value);
+      });
+
+      // Hvis ingen er valgt, sendes der en tom streng eller en markering af blank stemme
+      // Her sender vi en kommasepareret liste af navne, eller "Ingen / Blank" hvis tom.
+      const stemmeDataStreng = valgteNavne.length > 0 ? valgteNavne.join(", ") : "Ingen / Blank";
+
+      deaktiverFormular();
+      document.getElementById('countdownBoks').innerHTML = "Indsender din stemme...";
 
       fetch(CLOUD_FUNCTION_URL, {
         method: 'POST',
@@ -123,7 +159,7 @@
           spreadsheetId: spreadsheetId,
           handling: "stem",
           email: email,
-          stemme: navn
+          stemme: stemmeDataStreng
         })
       })
       .then(res => res.json())
@@ -132,7 +168,11 @@
           window.location.href = `resultatretssagafstemning.html?id=${encodeURIComponent(idParam)}`;
         } else {
           alert("Fejl: " + svar.error);
-          deaktiverKnapper();
+          document.getElementById('indsendKnap').disabled = false;
+          document.getElementById('email').disabled = false;
+          const bokse = document.getElementsByName('spillerStemme');
+          for (let boks of bokse) { boks.disabled = false; }
+          document.getElementById('countdownBoks').innerHTML = "";
         }
       });
     }
