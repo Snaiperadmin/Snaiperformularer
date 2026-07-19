@@ -191,7 +191,7 @@
         })
         .then(data => {
           if (data.succes) {
-            document.getElementById('holdNavnVisning').innerHTML = "Hold: " + data.navn;
+            document.getElementById('holdNavnVisning').innerHTML = "Spil: " + data.navn;
             document.getElementById('spreadsheetId').value = data.spreadsheetId;
             document.getElementById('mappeId').value = data.mappeId;
             document.getElementById('formularContainer').style.display = "block";
